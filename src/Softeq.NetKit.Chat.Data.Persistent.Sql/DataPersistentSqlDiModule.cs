@@ -1,6 +1,7 @@
 ﻿// Developed by Softeq Development Corporation
 // http://www.softeq.com
 
+using System;
 using System.Data.SqlClient;
 using Autofac;
 using Microsoft.Extensions.Configuration;
@@ -17,13 +18,24 @@ namespace Softeq.NetKit.Chat.Data.Persistent.Sql
             {
                 var context = x.Resolve<IComponentContext>();
                 var config = context.Resolve<IConfiguration>();
-                return new SqlConnectionFactory(new SqlConnectionStringBuilder(config["ConnectionStrings:DefaultConnection"]));
+                return new SqlConnectionFactory(new SqlConnectionStringBuilder(config["Database:ConnectionString"]));
             }).As<ISqlConnectionFactory>();
+
+            builder.Register(x =>
+            {
+                var context = x.Resolve<IComponentContext>();
+                var config = context.Resolve<IConfiguration>();
+
+                return new TransactionConfiguration
+                {
+                    TransactionTimeoutInMinutes = Convert.ToInt32(config["Database:TransactionConfiguration:TransactionTimeoutInMinutes"])
+                };
+            }).As<TransactionConfiguration>();
 
             builder.RegisterType<DatabaseManager>()
                 .As<IDatabaseManager>();
 
-            builder.Register(x => new UnitOfWork(x.Resolve<ISqlConnectionFactory>()))
+            builder.Register(x => new UnitOfWork(x.Resolve<ISqlConnectionFactory>(), x.Resolve<TransactionConfiguration>()))
                 .AsImplementedInterfaces();
 
             builder.RegisterType<DatabaseConfig>()
